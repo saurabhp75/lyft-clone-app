@@ -32,6 +32,17 @@ class MapsPresenter(private val networkService: NetworkService) : WebSocketListe
         jsonObject.put(Constants.TYPE, Constants.NEAR_BY_CABS)
         jsonObject.put(Constants.LAT, latLng.latitude)
         jsonObject.put(Constants.LNG, latLng.longitude)
+        jsonObject.put(Constants.TYPE, Constants.NEAR_BY_CABS)
+        webSocket.sendMessage(jsonObject.toString())
+    }
+
+    fun requestCab(pickUpLatLng: LatLng, dropLatLng: LatLng) {
+        val jsonObject = JSONObject()
+        jsonObject.put("type", "requestCab")
+        jsonObject.put("pickUpLat", pickUpLatLng.latitude)
+        jsonObject.put("pickUpLng", pickUpLatLng.longitude)
+        jsonObject.put("dropLat", dropLatLng.latitude)
+        jsonObject.put("dropLng", dropLatLng.longitude)
         webSocket.sendMessage(jsonObject.toString())
     }
 
@@ -59,6 +70,20 @@ class MapsPresenter(private val networkService: NetworkService) : WebSocketListe
         when (jsonObject.getString(Constants.TYPE)) {
             Constants.NEAR_BY_CABS -> {
                 handleOnMessageNearbyCabs(jsonObject)
+            }
+            Constants.CAB_BOOKED -> {
+                view?.informCabBooked()
+            }
+            Constants.PICKUP_PATH, Constants.TRIP_PATH -> {
+                val jsonArray = jsonObject.getJSONArray("path")
+                val pickUpPath = arrayListOf<LatLng>()
+                for (i in 0 until jsonArray.length()) {
+                    val lat = (jsonArray.get(i) as JSONObject).getDouble("lat")
+                    val lng = (jsonArray.get(i) as JSONObject).getDouble("lng")
+                    val latLng = LatLng(lat, lng)
+                    pickUpPath.add(latLng)
+                }
+                view?.showPath(pickUpPath)
             }
         }
     }

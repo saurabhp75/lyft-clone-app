@@ -3,6 +3,7 @@ package com.mindorks.ridesharing.ui.maps
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.os.Bundle
 import android.os.Looper
 import android.util.Log
@@ -25,6 +26,7 @@ import com.google.android.libraries.places.widget.AutocompleteActivity
 import com.google.android.libraries.places.widget.model.AutocompleteActivityMode
 import com.mindorks.ridesharing.R
 import com.mindorks.ridesharing.data.network.NetworkService
+import com.mindorks.ridesharing.utils.AnimationUtils
 import com.mindorks.ridesharing.utils.MapUtils
 import com.mindorks.ridesharing.utils.PermissionUtils
 import com.mindorks.ridesharing.utils.ViewUtils
@@ -47,6 +49,10 @@ class MapsActivity : AppCompatActivity(), MapsView, OnMapReadyCallback {
     private var pickUpLatLng: LatLng? = null
     private var dropLatLng: LatLng? = null
     private val nearbyCabMarkerList = arrayListOf<Marker>()
+    private var greyPolyLine: Polyline? = null
+    private var blackPolyline: Polyline? = null
+    private var destinationMarker: Marker? = null
+    private var originMarker: Marker? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -72,9 +78,10 @@ class MapsActivity : AppCompatActivity(), MapsView, OnMapReadyCallback {
             statusTextView.visibility = View.VISIBLE
             statusTextView.text = getString(R.string.requesting_your_cab)
             requestCabButton.isEnabled = false
+            // Disable pickup & drop text view
             pickUpTextView.isEnabled = false
             dropTextView.isEnabled = false
-//            presenter.requestCab(pickUpLatLng!!, dropLatLng!!)
+            presenter.requestCab(pickUpLatLng!!, dropLatLng!!)
         }
         nextRideButton.setOnClickListener {
 //            reset()
@@ -103,6 +110,11 @@ class MapsActivity : AppCompatActivity(), MapsView, OnMapReadyCallback {
         return googleMap.addMarker(
             MarkerOptions().position(latLng).flat(true).icon(bitmapDescriptor)
         )
+    }
+
+    private fun addOriginDestinationMarkerAndGet(latLng: LatLng): Marker {
+        val bitmapDescriptor = BitmapDescriptorFactory.fromBitmap(MapUtils.getDestinationBitmap())
+        return googleMap.addMarker(MarkerOptions().position(latLng).flat(true).icon(bitmapDescriptor))
     }
 
     private fun setCurrentLocationAsPickUp() {
@@ -151,6 +163,14 @@ class MapsActivity : AppCompatActivity(), MapsView, OnMapReadyCallback {
         )
     }
 
+    private fun checkAndShowRequestButton() {
+        // Sow this button only when pickup & drop are not null
+        if (pickUpLatLng !== null && dropLatLng !== null) {
+            requestCabButton.visibility = View.VISIBLE
+            requestCabButton.isEnabled = true
+        }
+    }
+
     override fun onMapReady(googleMap: GoogleMap) {
         this.googleMap = googleMap
     }
@@ -196,12 +216,12 @@ class MapsActivity : AppCompatActivity(), MapsView, OnMapReadyCallback {
                         PICKUP_REQUEST_CODE -> {
                             pickUpTextView.text = place.name
                             pickUpLatLng = place.latLng
-//                            checkAndShowRequestButton()
+                            checkAndShowRequestButton()
                         }
                         DROP_REQUEST_CODE -> {
                             dropTextView.text = place.name
                             dropLatLng = place.latLng
-//                            checkAndShowRequestButton()
+                            checkAndShowRequestButton()
                         }
                     }
                 }
@@ -261,6 +281,45 @@ class MapsActivity : AppCompatActivity(), MapsView, OnMapReadyCallback {
             val nearbyCabMarker = addCarMarkerAndGet(latLng)
             nearbyCabMarkerList.add(nearbyCabMarker)
         }
+    }
+
+    override fun informCabBooked() {
+        nearbyCabMarkerList.forEach { it.remove() }
+        nearbyCabMarkerList.clear()
+        requestCabButton.visibility = View.GONE
+        statusTextView.text = getString(R.string.your_cab_is_booked)
+    }
+
+    override fun showPath(latLngList: List<LatLng>) {
+        val builder = LatLngBounds.Builder()
+        for (latLng in latLngList) {
+            builder.include(latLng)
+        }
+        val bounds = builder.build()
+        googleMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 2))
+        val polylineOptions = PolylineOptions()
+        polylineOptions.color(Color.GRAY)
+        polylineOptions.width(5f)
+        polylineOptions.addAll(latLngList)
+        greyPolyLine = googleMap.addPolyline(polylineOptions)
+
+        val blackPolylineOptions = PolylineOptions()
+        blackPolylineOptions.width(5f)
+        blackPolylineOptions.color(Color.BLACK)
+        blackPolyline = googleMap.addPolyline(blackPolylineOptions)
+
+        originMarker = addOriginDestinationMarkerAndGet(latLngList[0])
+        originMarker?.setAnchor(0.5f, 0.5f)
+        destinationMarker = addOriginDestinationMarkerAndGet(latLngList[latLngList.size - 1])
+        destinationMarker?.setAnchor(0.5f, 0.5f)
+
+        val polylineAnimator = AnimationUtils.polyLineAnimator()
+        polylineAnimator.addUpdateListener { valueAnimator ->
+            val percentValue = (valueAnimator.animatedValue as Int)
+            val index = (greyPolyLine?.points!!.size * (percentValue / 100.0f)).toInt()
+            blackPolyline?.points = greyPolyLine?.points!!.subList(0, index)
+        }
+        polylineAnimator.start()
     }
 
 }
