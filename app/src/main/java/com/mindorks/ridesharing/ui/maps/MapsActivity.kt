@@ -307,6 +307,21 @@ class MapsActivity : AppCompatActivity(), MapsView, OnMapReadyCallback {
         statusTextView.text = getString(R.string.your_cab_is_booked)
     }
 
+    override fun informTripStart() {
+        statusTextView.text = getString(R.string.you_are_on_a_trip)
+        // Reset variable for next trip
+        previousLatLngFromServer = null
+    }
+
+    override fun informTripEnd() {
+        statusTextView.text = getString(R.string.trip_end)
+        nextRideButton.visibility = View.VISIBLE
+        greyPolyLine?.remove()
+        blackPolyline?.remove()
+        originMarker?.remove()
+        destinationMarker?.remove()
+    }
+
     override fun showPath(latLngList: List<LatLng>) {
         val builder = LatLngBounds.Builder()
         for (latLng in latLngList) {

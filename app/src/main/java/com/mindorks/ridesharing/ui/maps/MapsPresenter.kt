@@ -63,6 +63,7 @@ class MapsPresenter(private val networkService: NetworkService) : WebSocketListe
 
     }
 
+    // Handle events from the server
     override fun onMessage(data: String) {
         Log.d(TAG, "onMessage() data: $data")
 
@@ -97,10 +98,10 @@ class MapsPresenter(private val networkService: NetworkService) : WebSocketListe
                 view?.informCabArrived()
             }
             Constants.TRIP_START -> {
-//                view?.informTripStart()
+                view?.informTripStart()
             }
             Constants.TRIP_END -> {
-//                view?.informTripEnd()
+                view?.informTripEnd()
             }
         }
     }
