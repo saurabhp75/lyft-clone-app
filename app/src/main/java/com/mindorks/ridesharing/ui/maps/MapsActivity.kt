@@ -53,6 +53,9 @@ class MapsActivity : AppCompatActivity(), MapsView, OnMapReadyCallback {
     private var blackPolyline: Polyline? = null
     private var destinationMarker: Marker? = null
     private var originMarker: Marker? = null
+    private var previousLatLngFromServer: LatLng? = null
+    private var currentLatLngFromServer: LatLng? = null
+    private var movingCabMarker: Marker? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -114,7 +117,9 @@ class MapsActivity : AppCompatActivity(), MapsView, OnMapReadyCallback {
 
     private fun addOriginDestinationMarkerAndGet(latLng: LatLng): Marker {
         val bitmapDescriptor = BitmapDescriptorFactory.fromBitmap(MapUtils.getDestinationBitmap())
-        return googleMap.addMarker(MarkerOptions().position(latLng).flat(true).icon(bitmapDescriptor))
+        return googleMap.addMarker(
+            MarkerOptions().position(latLng).flat(true).icon(bitmapDescriptor)
+        )
     }
 
     private fun setCurrentLocationAsPickUp() {
@@ -283,6 +288,18 @@ class MapsActivity : AppCompatActivity(), MapsView, OnMapReadyCallback {
         }
     }
 
+    override fun informCabIsArriving() {
+        statusTextView.text = getString(R.string.your_cab_is_arriving)
+    }
+
+    override fun informCabArrived() {
+        statusTextView.text = getString(R.string.your_cab_has_arrived)
+        greyPolyLine?.remove()
+        blackPolyline?.remove()
+        originMarker?.remove()
+        destinationMarker?.remove()
+    }
+
     override fun informCabBooked() {
         nearbyCabMarkerList.forEach { it.remove() }
         nearbyCabMarkerList.clear()
@@ -320,6 +337,41 @@ class MapsActivity : AppCompatActivity(), MapsView, OnMapReadyCallback {
             blackPolyline?.points = greyPolyLine?.points!!.subList(0, index)
         }
         polylineAnimator.start()
+    }
+
+    override fun updateCabLocation(latLng: LatLng) {
+        if (movingCabMarker == null) {
+            movingCabMarker = addCarMarkerAndGet(latLng)
+        }
+        if (previousLatLngFromServer == null) {
+            currentLatLngFromServer = latLng
+            previousLatLngFromServer = currentLatLngFromServer
+            movingCabMarker?.position = currentLatLngFromServer
+            movingCabMarker?.setAnchor(0.5f, 0.5f)
+            animateCamera(currentLatLngFromServer)
+        } else {
+            previousLatLngFromServer = currentLatLngFromServer
+            currentLatLngFromServer = latLng
+            val valueAnimator = AnimationUtils.cabAnimator()
+            // Animate the moving cab
+            valueAnimator.addUpdateListener { va ->
+                if (currentLatLngFromServer != null && previousLatLngFromServer != null) {
+                    val multiplier = va.animatedFraction
+                    val nextLocation = LatLng(
+                        multiplier * currentLatLngFromServer!!.latitude + (1 - multiplier) * previousLatLngFromServer!!.latitude,
+                        multiplier * currentLatLngFromServer!!.longitude + (1 - multiplier) * previousLatLngFromServer!!.longitude
+                    )
+                    movingCabMarker?.position = nextLocation
+                    movingCabMarker?.setAnchor(0.5f, 0.5f)
+                    val rotation = MapUtils.getRotation(previousLatLngFromServer!!, nextLocation)
+                    if (!rotation.isNaN()) {
+                        movingCabMarker?.rotation = rotation
+                    }
+                    animateCamera(nextLocation)
+                }
+            }
+            valueAnimator.start()
+        }
     }
 
 }
