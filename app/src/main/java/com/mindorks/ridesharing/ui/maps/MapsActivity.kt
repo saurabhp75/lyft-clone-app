@@ -87,7 +87,7 @@ class MapsActivity : AppCompatActivity(), MapsView, OnMapReadyCallback {
             presenter.requestCab(pickUpLatLng!!, dropLatLng!!)
         }
         nextRideButton.setOnClickListener {
-//            reset()
+            reset()
         }
     }
 
@@ -174,6 +174,37 @@ class MapsActivity : AppCompatActivity(), MapsView, OnMapReadyCallback {
             requestCabButton.visibility = View.VISIBLE
             requestCabButton.isEnabled = true
         }
+    }
+
+    private fun reset() {
+        statusTextView.visibility = View.GONE
+        nextRideButton.visibility = View.GONE
+        nearbyCabMarkerList.forEach { it.remove() }
+        nearbyCabMarkerList.clear()
+        previousLatLngFromServer = null
+        currentLatLngFromServer = null
+        if (currentLatLng != null) {
+            moveCamera(currentLatLng)
+            animateCamera(currentLatLng)
+            setCurrentLocationAsPickUp()
+            presenter.requestNearbyCabs(currentLatLng!!)
+        } else {
+            pickUpTextView.text = ""
+        }
+        pickUpTextView.isEnabled = true
+        dropTextView.isEnabled = true
+        dropTextView.text = ""
+        movingCabMarker?.remove()
+        greyPolyLine?.remove()
+        blackPolyline?.remove()
+        originMarker?.remove()
+        destinationMarker?.remove()
+        dropLatLng = null
+        greyPolyLine = null
+        blackPolyline = null
+        originMarker = null
+        destinationMarker = null
+        movingCabMarker = null
     }
 
     override fun onMapReady(googleMap: GoogleMap) {
@@ -320,6 +351,17 @@ class MapsActivity : AppCompatActivity(), MapsView, OnMapReadyCallback {
         blackPolyline?.remove()
         originMarker?.remove()
         destinationMarker?.remove()
+    }
+
+    override fun showRoutesNotAvailableError() {
+        val error = getString(R.string.route_not_available_choose_different_locations)
+        Toast.makeText(this, error, Toast.LENGTH_LONG).show()
+        reset()
+    }
+
+    override fun showDirectionApiFailedError(error: String) {
+        Toast.makeText(this, error, Toast.LENGTH_LONG).show()
+        reset()
     }
 
     override fun showPath(latLngList: List<LatLng>) {

@@ -38,7 +38,7 @@ class MapsPresenter(private val networkService: NetworkService) : WebSocketListe
 
     fun requestCab(pickUpLatLng: LatLng, dropLatLng: LatLng) {
         val jsonObject = JSONObject()
-        jsonObject.put("type", "requestCab")
+        jsonObject.put("type", Constants.REQUEST_CAB)
         jsonObject.put("pickUpLat", pickUpLatLng.latitude)
         jsonObject.put("pickUpLng", pickUpLatLng.longitude)
         jsonObject.put("dropLat", dropLatLng.latitude)
@@ -112,6 +112,19 @@ class MapsPresenter(private val networkService: NetworkService) : WebSocketListe
 
     override fun onError(error: String) {
         Log.d(TAG, "onError(): $error")
+        val jsonObject = JSONObject(error)
+        when (jsonObject.getString(Constants.TYPE)) {
+            Constants.ROUTES_NOT_AVAILABLE -> {
+                view?.showRoutesNotAvailableError()
+            }
+            Constants.DIRECTION_API_FAILED -> {
+                view?.showDirectionApiFailedError(
+                    "Direction API Failed : " + jsonObject.getString(
+                        Constants.ERROR
+                    )
+                )
+            }
+        }
     }
 
 }
